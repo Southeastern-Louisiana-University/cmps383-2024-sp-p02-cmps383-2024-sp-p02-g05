@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Selu383.SP24.Api.Data;
@@ -38,8 +40,14 @@ public class HotelsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = Rnames.Admin)]
     public ActionResult<HotelDto> CreateHotel(HotelDto dto)
     {
+        if(!User.Identity.IsAuthenticated)
+        {
+            return Unauthorized();
+        }
+
         if (IsInvalid(dto))
         {
             return BadRequest();
@@ -49,6 +57,8 @@ public class HotelsController : ControllerBase
         {
             Name = dto.Name,
             Address = dto.Address,
+            Manager = dataContext.Users.FirstOrDefault(x => x.Id == dto.ManagerId)
+
         };
         hotels.Add(hotel);
 
@@ -61,6 +71,7 @@ public class HotelsController : ControllerBase
 
     [HttpPut]
     [Route("{id}")]
+    [Authorize]
     public ActionResult<HotelDto> UpdateHotel(int id, HotelDto dto)
     {
         if (IsInvalid(dto))
@@ -77,6 +88,11 @@ public class HotelsController : ControllerBase
         hotel.Name = dto.Name;
         hotel.Address = dto.Address;
 
+        if (User.IsInRole(RandomAccess.Admin))
+        {
+            hotel.ManagerId = dto.ManagerId;
+        }
+
         dataContext.SaveChanges();
 
         dto.Id = hotel.Id;
@@ -86,8 +102,14 @@ public class HotelsController : ControllerBase
 
     [HttpDelete]
     [Route("{id}")]
+    [Authorize(Roles = Rnames.Admin)]
     public ActionResult DeleteHotel(int id)
     {
+        if (!Users.Identity.IsAuthenticated)
+        {
+            return Unauthorized();
+        }
+
         var hotel = hotels.FirstOrDefault(x => x.Id == id);
         if (hotel == null)
         {
@@ -116,6 +138,20 @@ public class HotelsController : ControllerBase
                 Id = x.Id,
                 Name = x.Name,
                 Address = x.Address,
+                ManagerId = x.Manager.Id
             });
     }
+
+    private int? GetUserId(ClaimsPrincipal claimsPrincipal)
+    {
+        var userId = claimsPrincipal.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId == null)
+        {
+            return null;
+        }
+
+        return int.Parse(userId);
+    }
+     
 }
