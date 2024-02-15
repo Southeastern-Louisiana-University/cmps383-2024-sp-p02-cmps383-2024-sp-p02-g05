@@ -153,5 +153,5 @@ public class HotelsController : ControllerBase
 
         return int.Parse(userId);
     }
-
+     
 }
